@@ -35,6 +35,7 @@ import android.content.pm.PackageManager;
 import android.content.pm.ResolveInfo;
 import android.net.Uri;
 import android.os.Build;
+import android.util.Log;
 
 import io.github.pwlin.cordova.plugins.fileopener2.FileProvider;
 
@@ -44,6 +45,11 @@ import org.apache.cordova.PluginResult;
 import org.apache.cordova.CordovaResourceApi;
 
 public class FileOpener2 extends CordovaPlugin {
+
+	public static boolean enabledLog = true;
+    public static Integer LOG_DEBUG = 1;
+    public static Integer LOG_ERROR = 0;
+    private static String TAG = "KioskActivity@FILE";
 
 	/**
 	 * Executes the request and returns a boolean.
@@ -64,6 +70,8 @@ public class FileOpener2 extends CordovaPlugin {
 			if(args.length() > 2){
 				openWithDefault = args.getBoolean(2);
 			}
+
+			FileOpener2.toAndroidLog("open file # fileUrl: " + fileUrl + " - contentType " + contentType + " - " + openWithDefault + " - " + callbackContext);
 			this._open(fileUrl, contentType, openWithDefault, callbackContext);
 		}
 		else if (action.equals("uninstall")) {
@@ -85,6 +93,8 @@ public class FileOpener2 extends CordovaPlugin {
 			JSONObject errorObj = new JSONObject();
 			errorObj.put("status", PluginResult.Status.INVALID_ACTION.ordinal());
 			errorObj.put("message", "Invalid action");
+			FileOpener2.toAndroidLog("Invalid action", 0);
+
 			callbackContext.error(errorObj);
 		}
 		return true;
@@ -96,8 +106,12 @@ public class FileOpener2 extends CordovaPlugin {
 			CordovaResourceApi resourceApi = webView.getResourceApi();
 			Uri fileUri = resourceApi.remapUri(Uri.parse(fileArg));
 			fileName = this.stripFileProtocol(fileUri.toString());
+
+			FileOpener2.toAndroidLog("open file # metodo 1 fileName " + fileName);
 		} catch (Exception e) {
 			fileName = fileArg;
+
+			FileOpener2.toAndroidLog("open file # metodo 2 fileName " + fileName);
 		}
 		File file = new File(fileName);
 		if (file.exists()) {
@@ -113,6 +127,8 @@ public class FileOpener2 extends CordovaPlugin {
 						Context context = cordova.getActivity().getApplicationContext();
 						path = FileProvider.getUriForFile(context, cordova.getActivity().getPackageName() + ".opener.provider", file);
 					}
+					FileOpener2.toAndroidLog("APK intent.SetDataAndType # " + path + " " + contentType);
+
 					intent.setDataAndType(path, contentType);
 					intent.setFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
 
@@ -122,7 +138,8 @@ public class FileOpener2 extends CordovaPlugin {
 					Uri path = FileProvider.getUriForFile(context, cordova.getActivity().getPackageName() + ".opener.provider", file);
 					intent.setDataAndType(path, contentType);
 					intent.setFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_ACTIVITY_NO_HISTORY);
-
+					
+					FileOpener2.toAndroidLog("intent.SetDataAndType # " + path + " " + contentType);
 				}
 
 				/*
@@ -131,9 +148,12 @@ public class FileOpener2 extends CordovaPlugin {
 				 */
 				 if(openWithDefault){
 					 cordova.getActivity().startActivity(intent);
+					 Log.d(TAG, "@FILE open with default");
+					 FileOpener2.toAndroidLog("open with default");
 				 }
 				 else{
 					 cordova.getActivity().startActivity(Intent.createChooser(intent, "Open File in..."));
+					 FileOpener2.toAndroidLog("open with chooser");
 				 }
 
 				callbackContext.success();
@@ -141,12 +161,16 @@ public class FileOpener2 extends CordovaPlugin {
 				JSONObject errorObj = new JSONObject();
 				errorObj.put("status", PluginResult.Status.ERROR.ordinal());
 				errorObj.put("message", "Activity not found: " + e.getMessage());
+				FileOpener2.toAndroidLog("Activity not found: " + e.getMessage(), 0);
+
 				callbackContext.error(errorObj);
 			}
 		} else {
 			JSONObject errorObj = new JSONObject();
 			errorObj.put("status", PluginResult.Status.ERROR.ordinal());
 			errorObj.put("message", "File not found");
+			FileOpener2.toAndroidLog("File not found", 0);
+
 			callbackContext.error(errorObj);
 		}
 	}
@@ -162,6 +186,8 @@ public class FileOpener2 extends CordovaPlugin {
 			JSONObject errorObj = new JSONObject();
 			errorObj.put("status", PluginResult.Status.ERROR.ordinal());
 			errorObj.put("message", "This package is not installed");
+			FileOpener2.toAndroidLog("This package " + packageId + " is not installed", 0);
+
 			callbackContext.error(errorObj);
 		}
 	}
@@ -186,5 +212,17 @@ public class FileOpener2 extends CordovaPlugin {
 		}
 		return uriString;
 	}
+
+	private static void toAndroidLog(String str, Integer... t) {
+        Integer type = t.length > 0 ? t[0] : FileOpener2.LOG_DEBUG;
+
+        if(FileOpener2.enabledLog) {
+            if(type == FileOpener2.LOG_DEBUG) {
+                Log.d(FileOpener2.TAG, str);
+            } else {
+                Log.e(FileOpener2.TAG, str);
+            }
+        }
+    }
 
 }
